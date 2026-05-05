@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 using namespace std;
 
 /*
@@ -35,6 +36,24 @@ class Tree {
 private:
     Node<T>* root;
     unordered_map<string, Node<T>*> nodesById;
+
+    bool childAlreadyLinked(Node<T>* parentNode, const string &childID) const {
+        for (Node<T>* child : parentNode->children) {
+            if (child->id == childID) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool parentAlreadyLinked(Node<T>* childNode, const string &parentID) const {
+        for (Node<T>* parent : childNode->parents) {
+            if (parent->id == parentID) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     void deleteAllNodes() {
         for (auto &entry : nodesById) {
@@ -70,14 +89,13 @@ public:
             nodesById[childID] = childNode;
         }
 
-        for (Node<T>* existingChild : parentNode->children) {
-            if (existingChild->id == childID) {
-                return;
-            }
+        if (!childAlreadyLinked(parentNode, childID)) {
+            parentNode->children.push_back(childNode);
         }
 
-        parentNode->children.push_back(childNode);
-        childNode->parents.push_back(parentNode);
+        if (!parentAlreadyLinked(childNode, parentID)) {
+            childNode->parents.push_back(parentNode);
+        }
     }
 
     Node<T>* findNode(const string &id) {
@@ -90,7 +108,71 @@ public:
     }
 
     void printAll() {
-        cout << "printAll() not fully implemented yet." << endl;
+        vector<string> ids;
+        ids.reserve(nodesById.size());
+
+        for (const auto &entry : nodesById) {
+            ids.push_back(entry.first);
+        }
+
+        sort(ids.begin(), ids.end());
+
+        cout << "\n===== Story Tree =====\n";
+        for (const string &id : ids) {
+            Node<T>* node = nodesById[id];
+
+            cout << "Node " << node->id << ": " << node->data << "\n";
+
+            if (node->children.empty()) {
+                cout << "  Child -> (none)\n";
+            } else {
+                for (Node<T>* child : node->children) {
+                    cout << "  Child -> " << child->id << "\n";
+                }
+            }
+
+            cout << "\n";
+        }
+        cout << "======================\n";
+    }
+
+    void playGame() {
+        if (root == nullptr) {
+            cout << "Tree is empty.\n";
+            return;
+        }
+
+        Node<T>* current = root;
+
+        cout << "\n===== Begin Adventure =====\n\n";
+
+        while (true) {
+            cout << current->data << "\n";
+
+            if (current->children.empty()) {
+                cout << "There are no further paths.\n";
+                cout << "Your journey ends here.\n\n";
+                cout << "===== Adventure Complete =====\n";
+                return;
+            }
+
+            cout << "Choose your next action:\n";
+            for (int i = 0; i < static_cast<int>(current->children.size()); i++) {
+                cout << i + 1 << ". " << current->children[i]->data << "\n";
+            }
+
+            int selection;
+            cout << "Selection: ";
+            cin >> selection;
+
+            while (selection < 1 || selection > static_cast<int>(current->children.size())) {
+                cout << "Invalid choice. Try again: ";
+                cin >> selection;
+            }
+
+            cout << "\n";
+            current = current->children[selection - 1];
+        }
     }
 
     ~Tree() {
