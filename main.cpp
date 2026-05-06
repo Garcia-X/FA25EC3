@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <cstdlib>
 #include "tree.h"
 using namespace std;
@@ -36,19 +37,24 @@ struct StoryNodeRaw {
 
 // Step 1. Call OpenAI with curl
 string runCurlToOpenAI(const string &apiKey) {
+    ofstream payload("payload.json");
+    payload
+        << "{"
+        << "\"model\":\"gpt-4.1-mini\","
+        << "\"input\":\"Generate a choose-your-own-adventure story as a structured list of nodes. "
+        << "Each node must have: NODE_ID, NODE_TEXT, CHILD_IDS as a comma-separated list. "
+        << "Limit to 2 nodes. The format must be strictly: "
+        << "[NODE_ID] TEXT: ... NEXT: child1, child2, ... "
+        << "No extra commentary.\""
+        << "}";
+    payload.close();
+
     string command =
         "curl https://api.openai.com/v1/responses "
         "-H \"Content-Type: application/json\" "
         "-H \"Authorization: Bearer " + apiKey + "\" "
-        "-d '{"
-        "\"model\": \"gpt-4.1-mini\","
-        "\"input\": \"Generate a choose-your-own-adventure story as a structured list of nodes. "
-        "Each node must have: NODE_ID, NODE_TEXT, CHILD_IDS as a comma-separated list. "
-        "Limit to 2 nodes. The format must be strictly: "
-        "[NODE_ID] TEXT: ... NEXT: child1, child2, ... "
-        "No extra commentary.\""
-        "}' "
-        " > story.txt";
+        "--data-binary @payload.json "
+        "-o story.txt";
 
     cout << "Fetching story from OpenAI..." << endl;
     system(command.c_str());
@@ -82,6 +88,8 @@ vector<StoryNodeRaw> parseStoryFile(const string &filename) {
         if (textPos == string::npos || nextPos == string::npos) continue;
 
         string textPart = line.substr(textPos + 5, nextPos - (textPos + 5));
+        while (!textPart.empty() && textPart.front() == ' ') textPart.erase(0, 1);
+        while (!textPart.empty() && textPart.back() == ' ') textPart.pop_back();
         node.text = textPart;
 
         string nextPart = line.substr(nextPos + 5);
@@ -89,6 +97,7 @@ vector<StoryNodeRaw> parseStoryFile(const string &filename) {
         string temp;
         while (getline(ss, temp, ',')) {
             while (!temp.empty() && temp.front() == ' ') temp.erase(0, 1);
+            while (!temp.empty() && temp.back() == ' ') temp.pop_back();
             if (!temp.empty()) node.children.push_back(temp);
         }
 
@@ -115,12 +124,21 @@ int main() {
     Tree<string> adventureTree;
 
     // TODO: Students, create the root from rawNodes[0]
-    // adventureTree.createRoot(rawNodes[0].id, rawNodes[0].text);
+    adventureTree.createRoot(rawNodes[0].id, rawNodes[0].text);
+
+    unordered_map<string, string> textById;
+    for (const auto &node : rawNodes) {
+        textById[node.id] = node.text;
+    }
 
     // TODO: Students, add all remaining nodes
-    // for (int i = 1; i < rawNodes.size(); i++) {
-    //     adventureTree.addNode(...);
-    // }
+    for (const auto &node : rawNodes) {
+        for (const auto &childID : node.children) {
+            if (textById.find(childID) != textById.end()) {
+                adventureTree.addNode(node.id, childID, textById[childID]);
+            }
+        }
+    }
 
     // TODO: Students, implement a method in Tree<T> called playGame()
     // This method should:
@@ -135,7 +153,7 @@ int main() {
     // adventureTree.playGame();
 
     cout << "Story loaded into your dynamic tree structure." << endl;
-    cout << "Implement the Tree class to enable traversal and printing." << endl;
+    adventureTree.printAll();
 
     // TODO: Once implemented, uncomment to allow full gameplay.
     // adventureTree.playGame();

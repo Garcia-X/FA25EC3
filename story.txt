@@ -1,0 +1,6 @@
+[1] TEXT: You stand in a forest clearing. NEXT: 2, 3
+[2] TEXT: You follow a narrow path. NEXT: 4
+[3] TEXT: You enter a dark cave. NEXT: 4, 5
+[4] TEXT: You find an abandoned hut. NEXT: 6
+[5] TEXT: A river blocks your way. NEXT: 6
+[6] TEXT: You reach the ancient ruins. NEXT:
